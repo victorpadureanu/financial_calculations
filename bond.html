@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <label>Current Date:</label>
+    <input id="cur_date" type="date"></input>
+</br>
+    <label>End Date:</label>
+    <input id="end_date" type="date"></input>
+</br>
+    <label>Interest per year:</label>
+    <input id="interest_p_year" value="0.05"></input>
+</br>
+    <label>Transaction Tax:</label>
+    <input id="trans_tax" value="0.001"></input>
+</br>
+    <label>Income Tax:</label>
+    <label id="income_tax">0</label>
+</br>
+    <label>Net Price:</label>
+    <input id="net_price" value="1"></input>
+</br>
+    <label>Desired EARP:</label>
+    <input id="earp" value="1.05"></input>
+</br>
+    <button onclick="Compute_EAPR()">Compute EARP</button>
+</br>
+    <button onclick="Compute_NetPrice()">Compute Desired Net Price</button>
+</br>
+    <label>Result:</label>
+    <label id="result"></label>
+
+<script>
+
+document.getElementById('cur_date').valueAsDate = new Date();
+document.getElementById('end_date').valueAsDate = new Date();
+
+const _MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+function date_diff_in_years(a,b) {
+    const utc1 = Date.UTC(b.getFullYear(), a.getMonth(), a.getDate());
+    const utc2 = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    if (utc1 <= utc2) return b.getFullYear() - a.getFullYear();
+    return b.getFullYear() - a.getFullYear() - 1;
+}
+
+function date_diff_in_days_excluding_years(a,b) {
+    let utc1 = Date.UTC(b.getFullYear(), a.getMonth(), a.getDate());
+    let utc2 = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    if (utc1 > utc2) utc2 = Date.UTC(b.getFullYear()+1, b.getMonth(), b.getDate());
+    return Math.floor((utc2 - utc1) / _MS_PER_DAY);
+}
+
+function Compute_EAPR() {
+    var result = document.getElementById("result");
+    var cur_date = new Date(document.getElementById("cur_date").value);
+    var end_date = new Date(document.getElementById("end_date").value);
+
+    var day_diff = date_diff_in_days_excluding_years(cur_date, end_date);
+    var years_diff = date_diff_in_years(cur_date, end_date);
+
+    var net_price = Number.parseFloat(document.getElementById("net_price").value);
+    var interest = Number.parseFloat(document.getElementById("interest_p_year").value);
+    var dirty_price = net_price+interest*(365-day_diff)/365;
+
+    var transaction_tax = Number.parseFloat(document.getElementById("trans_tax").value);
+    var paid_price = dirty_price*(1+transaction_tax);
+    
+    var total_years = years_diff + day_diff/365;
+
+    function compute(coef) {
+        var x = paid_price * Math.pow(coef, total_years) - 1;
+        var p = interest;
+        for(var i=0;i<=years_diff;++i) {
+            x = x - p;
+            p = p * coef;
+        }
+        return x;
+    }
+
+    function search_coef(l, r) {
+        if (compute(l) > 0 || compute(r) < 0) {
+            return -1;
+        }
+        
+        while (r-l > 0.00000001) {
+            var m = (l+r)/2;
+            var v = compute(m);
+            if(v < 0) l = m;
+            else r = m;
+        }
+        return r;
+    }
+
+    result.innerHTML = "EARP: " + search_coef(0.0001,2);
+}
+
+function Compute_NetPrice() {
+    var result = document.getElementById("result");
+    var cur_date = new Date(document.getElementById("cur_date").value);
+    var end_date = new Date(document.getElementById("end_date").value);
+
+    var day_diff = date_diff_in_days_excluding_years(cur_date, end_date);
+    var years_diff = date_diff_in_years(cur_date, end_date);
+
+    var interest = Number.parseFloat(document.getElementById("interest_p_year").value);
+    var transaction_tax = Number.parseFloat(document.getElementById("trans_tax").value);
+
+    var total_years = years_diff + day_diff/365;
+
+    var rate = Number.parseFloat(document.getElementById("earp").value);
+
+    function compute_desired_paid_price() {
+        var x = 1;
+        var p = interest;
+        for(var i=0;i<=years_diff;++i) {
+            x = x + p;
+            p = p * rate;
+        }
+
+        return x / Math.pow(rate, total_years);
+    }
+
+    var desired_paid_price = compute_desired_paid_price();
+
+    var desired_dirty_price =  desired_paid_price /(1+transaction_tax);
+
+    var net_price = desired_dirty_price-interest*(365-day_diff)/365;
+
+    result.innerHTML = "Desired net: " + net_price;
+}
+</script>
+</body>
+</html>
